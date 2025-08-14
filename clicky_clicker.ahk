@@ -1,4 +1,4 @@
-﻿#Persistent
+#Persistent
 SetBatchLines, -1
 DetectHiddenWindows, On
 SetTitleMatchMode, 2
@@ -11,9 +11,8 @@ if !FileExist(configFile) {
     ExitApp
 }
 
-FileRead, rawKeys, C:\Users\Administrator\AppData\Roaming\MainGUI\configs.cfg
-StringSplit, keyLine, rawKeys, 
-, 
+FileRead, rawKeys, %configFile%
+StringSplit, keyLine, rawKeys, `n, `r
 
 play_pause := keyLine1
 exitKey    := keyLine2
@@ -26,7 +25,7 @@ mediaKey   := keyLine8
 
 odd := true
 paused := false
-Hotkey, , PauseNow
+Hotkey, %play_pause%, PauseNow
 
 SetTimer, WatchKeys, 20
 return
@@ -52,7 +51,6 @@ if GetKeyState(volDownKey, "P") {
 }
 
 if GetKeyState(swapKey, "P") {
-    KeyWait, 
     if odd {
         Send, {Space}
         Sleep, 50
@@ -70,21 +68,18 @@ if GetKeyState(swapKey, "P") {
 }
 
 if GetKeyState(altTabKey, "P") {
-    KeyWait, 
     Send, {Alt Down}{Tab}
     Sleep, 100
     Send, {Alt Up}
 }
 
 if GetKeyState(closeKey, "P") {
-    KeyWait, 
     Send, {Alt Down}{F4}
     Sleep, 100
     Send, {Alt Up}
 }
 
 if GetKeyState(mediaKey, "P") {
-    KeyWait, 
     Send, {Media_Play_Pause}
 }
 
