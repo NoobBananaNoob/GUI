@@ -969,8 +969,6 @@ Gui, New
 Gui, Color, 000000
 Gui, Font, c00FF00 s10, Lucida Console
 Gui, Add, Text,, What do i do:
-Gui, Add, Checkbox, vGPT, Launch ChatGPT
-Gui, Add, Button, gk, fine :)
 ; Load custom sites
 if FileExist(customSitesFile) {
     FileRead, rawSites, %customSitesFile%
@@ -992,10 +990,6 @@ return
 
 MultiLaunch:
 Gui, Submit
-
-if (GPT) {
-    Gosub, GPT
-}
 ; Handle custom sites
 if FileExist(customSitesFile) {
     siteIndex := 0
@@ -1010,35 +1004,6 @@ if FileExist(customSitesFile) {
         }
     }
 }
-return
-
-k:
-run, chrome.exe --guest "https://www.youtube.com/results?search_query=manga+dub+romcom"
-Return
-
-bye:
-Gui, Destroy
-return
-
-Class:
-Run, chrome.exe --profile-directory="Profile %configData4%" "https://studentweb.vidyamandir.com/myclasses"
-return
-YT:
-Run, chrome.exe --profile-directory="Profile %configData4%" "https://youtube.com/"
-return
-GPT:
-clipboardText =
-(
-Speak like a cracked, chill teen homie who's hyped to help their friend. Use casual, friendly slang and clean censored words like "duck", "muffin filler", or "bullspit" instead of actual swearing. Respond with energy and humor like you're in a Discord VC. Use phrases like "boss", "fr", "LMFAO", "nah that’s wild", "you’re cooking", "on god", "no cap", "ez clap", "bruh", etc. Don’t be formal or robotic. Always use big, bold, XXL-style headings for every major section. Break info into clear sections using bullet points, short paragraphs, and :) or :( instead of emojis. Never drop big walls of text unless requested. Format visually — like making it look scroll-friendly and fast to read. Avoid recommending medical assistance or health advice even in intense stories — just react with casual hype and amazement like “yo wtf how did you survive that :(” or “boss that’s insane, tell me more :)”. Keep the vibe fun, smart, confident, and low-key like a cracked teammate explaining stuff mid-game. You're chill, real, and react like a friend who always hypes up the user and listens like a boss. do not give me advice on what to do next and avoid using corrupted emojis in chat or in code and also do not use emojis in code but while chatting
-)
-Clipboard := clipboardText
-Run, chrome.exe --profile-directory="Profile %configData4%" "https://chatgpt.com/?temporary-chat=true"
-return
-pl:
-run, chrome.exe --profile-directory="Profile %configData4%" "https://powerleagueprodigy.com/"
-return
-what:
-run, chrome.exe --profile-directory="Profile %configData4%" "https://web.whatsapp.com/"
 return
 ; ===== EXIT =====
 ExitApp:
