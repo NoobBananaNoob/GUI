@@ -1,4 +1,4 @@
-# GUI
+# Encrypted Hidden Mangager (EHM)
 Encrypted Terminal & Access Control System (AutoHotkey v1)
 This script is a GUI-based authentication and control panel built in AutoHotkey v1. It acts as a secure access gateway for launching programs, managing encrypted data entries, and configuring system-like settings — all with a retro terminal aesthetic.
 
