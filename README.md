@@ -35,7 +35,7 @@ All settings saved to configs.cfg for persistence.
 
 Encrypted Data Management
 
-Store and retrieve encrypted "anime entries" (can be adapted for any kind of text).
+Store and retrieve encrypted "entries" (can be adapted for any kind of text).
 
 Add new entries (auto-encrypted).
 
@@ -73,7 +73,7 @@ The script stores its data in:
  
   ├─ systems32.sys       → Failed attempt count
  
-  ├─ logons.dll          → Encrypted anime entries
+  ├─ logons.dll          → Encrypted entries
  
   ├─ logoffs.dll         → Encrypted password
  
