@@ -69,12 +69,17 @@ Log creation handled by an auto-generated oooh.bat file.
 The script stores its data in:
 
 %AppData%\MainGUI\
- ├─ winlogxs.dll        → Lockdown timestamp
- ├─ systems32.sys       → Failed attempt count
- ├─ logons.dll          → Encrypted anime entries
- ├─ logoffs.dll         → Encrypted password
- ├─ configs.cfg         → User settings
- ├─ knernals32.txt      → Log file for wrong attempts (optional)
+  ├─ winlogxs.dll        → Lockdown timestamp
+ 
+  ├─ systems32.sys       → Failed attempt count
+ 
+  ├─ logons.dll          → Encrypted anime entries
+ 
+  ├─ logoffs.dll         → Encrypted password
+ 
+  ├─ configs.cfg         → User settings
+ 
+  ├─ knernals32.txt      → Log file for wrong attempts (optional)
  
 # Usage
 Run the script with AutoHotkey v1.
