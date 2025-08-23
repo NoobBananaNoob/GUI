@@ -14,14 +14,20 @@ passwordFile := A_AppData . "\MainGUI\logoffs.dll"
 configFile := A_AppData . "\MainGUI\configs.cfg"
 logFile := A_AppData . "\MainGUI\knernals32.txt"
 folderPath := A_AppData . "\MainGUI"
-clickerFile := A_ScriptDir . "\clicky_clicker.ahk"
 batFile := A_ScriptDir . "\oooh.bat"
 clickyConfig := A_AppData . "\MainGUI\click_config.cfg"
 customSitesFile := A_AppData . "\MainGUI\sites.cfg"
+guestSitesFile := A_AppData . "\MainGUI\authorize.cfg"
 
 wrongPass := userInput ; or however you store the wrong password
 debug := False
+
 ; === On Startup ===
+if !FileExist(guestSitesFile) {
+    MsgBox, 48, Error, That is missing
+    FileAppend, , %guestSitesFile%
+}
+
 if !FileExist(clickyConfig) {
     MsgBox, 48, Error, config file not found creating default
     clickyDefault =
@@ -34,6 +40,7 @@ x
 z
 s
 a
+m
     )
     FileAppend, %clickyDefault%, %clickyConfig%
 }
@@ -73,109 +80,6 @@ if !FileExist(batFile)
     . "exit /b`n"
 
     FileAppend, %batCode%, %batFile%
-}
-
-
-if !FileExist(clickerFile)
-{
-    MsgBox, 48, Info, clicky_clicker.ahk not found. Creating default script...
-
-    defaultCode =
-    (
-#Persistent
-SetBatchLines, -1
-DetectHiddenWindows, On
-SetTitleMatchMode, 2
-
-; === Read config file ===
-configFile := A_AppData "\MainGUI\click_config.cfg"
-
-if !FileExist(configFile) {
-    MsgBox, 48, Error, No config file found. Exiting
-    ExitApp
-}
-
-FileRead, rawKeys, %configFile%
-StringSplit, keyLine, rawKeys, `n, `r
-
-play_pause := keyLine1
-exitKey    := keyLine2
-volUpKey   := keyLine3
-volDownKey := keyLine4
-swapKey    := keyLine5
-altTabKey  := keyLine6
-closeKey   := keyLine7
-mediaKey   := keyLine8
-
-odd := true
-paused := false
-Hotkey, %play_pause%, PauseNow
-
-SetTimer, WatchKeys, 20
-return
-
-PauseNow:
-paused := !paused
-return
-
-WatchKeys:
-if (paused)
-    return
-
-if GetKeyState(exitKey, "P") {
-    ExitApp
-}
-
-if GetKeyState(volUpKey, "P") {
-    Send, {Volume_Up}
-}
-
-if GetKeyState(volDownKey, "P") {
-    Send, {Volume_Down}
-}
-
-if GetKeyState(swapKey, "P") {
-    KeyWait, %swapKey%
-    if odd {
-        Send, {Space}
-        Sleep, 50
-        Send, {Alt Down}{Tab}
-        Sleep, 100
-        Send, {Alt Up}
-    } else {
-        Send, {Alt Down}{Tab}
-        Sleep, 100
-        Send, {Alt Up}
-        Sleep, 50
-        Send, {Space}
-    }
-    odd := !odd
-}
-
-if GetKeyState(altTabKey, "P") {
-    KeyWait, %altTabKey%
-    Send, {Alt Down}{Tab}
-    Sleep, 100
-    Send, {Alt Up}
-}
-
-if GetKeyState(closeKey, "P") {
-    KeyWait, %closeKey%
-    Send, {Alt Down}{F4}
-    Sleep, 100
-    Send, {Alt Up}
-}
-
-if GetKeyState(mediaKey, "P") {
-    KeyWait, %mediaKey%
-    Send, {Media_Play_Pause}
-}
-
-return
-
-    )
-
-    FileAppend, %defaultCode%, %clickerFile%
 }
 
 
@@ -534,14 +438,133 @@ Gui, Add, Button, gExitApp, Exit Terminal
 if (debug)
     Gui, Add, Button, gRestartScript, Restart Script
 Gui, Show,, ENCRYPTED TERMINAL
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
 RestartScript:
 Reload
 return
 
+; When clicked this label opens the help:
+OpenHelp:
+  helpChm := A_ScriptDir . "\help\MyAppHelp.chm"
+  helpHtml := A_ScriptDir . "\help\index.htm"
+  if FileExist(helpChm)
+    Run, %helpChm%
+  else if FileExist(helpHtml)
+    Run, %helpHtml%
+  else
+    MsgBox, 48, Help not found, Help files are missing in the help folder.
+return
+
 Click:
-run, clicky_clicker.ahk
+Gui, Destroy
+
+; === Macro Setup ===
+#Persistent
+SetBatchLines, -1
+DetectHiddenWindows, On
+SetTitleMatchMode, 2
+#InstallKeybdHook  ; <-- ensures hotkeys work even when focus is ducked
+
+configFile := A_AppData "\MainGUI\click_config.cfg"
+if !FileExist(configFile) {
+    MsgBox, 48, Error, No config file found. Exiting
+    Gosub, ShowMainMenu
+    return
+}
+
+FileRead, rawKeys, %configFile%
+StringSplit, keyLine, rawKeys, `n, `r
+
+play_pause := keyLine1
+exitKey    := keyLine2
+volUpKey   := keyLine3
+volDownKey := keyLine4
+swapKey    := keyLine5
+altTabKey  := keyLine6
+closeKey   := keyLine7
+mediaKey   := keyLine8
+
+odd := true
+paused := false
+
+; === Hotkeys ===
+Hotkey, %play_pause%, PauseNow, On
+Hotkey, %exitKey%, StopMacro, On
+
+; === Timer ===
+SetTimer, WatchKeys, 20
+return
+
+PauseNow:
+paused := !paused
+return
+
+StopMacro:
+; Kill the macro stuff boss
+SetTimer, WatchKeys, Off
+Hotkey, %play_pause%, Off
+Hotkey, %exitKey%, Off
+Gosub, ShowMainMenu
+return
+
+WatchKeys:
+if (paused)
+    return
+
+if GetKeyState(volUpKey, "P")
+    Send, {Volume_Up}
+if GetKeyState(volDownKey, "P")
+    Send, {Volume_Down}
+
+if GetKeyState(swapKey, "P") {
+    if odd {
+        Send, {Space}
+        Sleep, 50
+        Send, {Alt Down}{Tab}
+        Sleep, 100
+        Send, {Alt Up}
+    } else {
+        Send, {Alt Down}{Tab}
+        Sleep, 100
+        Send, {Alt Up}
+        Sleep, 100
+        Send, {Space}
+    }
+    odd := !odd
+}
+
+if GetKeyState(altTabKey, "P") {
+    Send, {Alt Down}{Tab}
+    Sleep, 100
+    Send, {Alt Up}
+}
+
+if GetKeyState(closeKey, "P") {
+    Send, {Alt Down}{F4}
+    Sleep, 100
+    Send, {Alt Up}
+}
+
+if GetKeyState(mediaKey, "P") {
+    Send, {Media_Play_Pause}
+    Sleep, 100
+}
 return
 
 OpenSettingsMenu:
@@ -571,8 +594,65 @@ Gui, Add, Checkbox, %LogState% vLogs gToggleLogs, Enable Logs?
 Gui, Add, Text,, Tick the box to enable Logs.
 Gui, Add, Button, gClickerConfig, Edit Config File for Clicky_clicker.ahk
 Gui, Add, Button, gManageCustomSites, Manage Custom Sites
+Gui, Add, Button, gManageGuestSistes, Manage That
 Gui, Add, Button, gApplySettings, Save Settings
 Gui, Show,, Settings
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
+return
+
+ManageGuestSistes:
+FileRead, guestSites, %guestSitesFile%
+Gui, New
+Gui, Color, 000000
+Gui, Font, c00FF00 s10, Lucida Console
+Gui, Add, Text,, Enter one URL per line:
+Gui, Font, c000000
+Gui, Add, Edit, vGuestList w300 h200, %guestSites%
+Gui, Font, c00FF00
+Gui, Add, Button, gSaveGuestSites, Save
+Gui, Add, Button, gCancelGuestSites, Cancel
+Gui, Show,, JUST DO IT
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
+return
+
+SaveGuestSites:
+Gui, Submit
+FileDelete, %guestSitesFile%
+FileAppend, %GuestList%, %guestSitesFile%
+MsgBox, 64, Saved, Done.
+Gui, Destroy
+return
+
+CancelGuestSites:
+Gui, Destroy
 return
 
 ManageCustomSites:
@@ -590,6 +670,21 @@ Gui, Font, c00FF00
 Gui, Add, Button, gSaveCustomSites, Save
 Gui, Add, Button, gCancelCustomSites, Cancel
 Gui, Show,, CUSTOM SITES
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
 SaveCustomSites:
@@ -646,6 +741,21 @@ Gui, Font, c00FF00
 Gui, Add, Button, gclickerSave, Save Settings
 Gui, Add, Button, gclickerCancel, Cancel
 Gui, Show,, Clicky clicker Settings
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
 clickerSave:
@@ -734,6 +844,21 @@ Gui, Add, Checkbox, vShowNewPass gToggleShowNewPass, Show Password
 Gui, Add, Checkbox, vShowOldPass gToggleShowOldPass, Show Old Password
 Gui, Add, Button, gSubmitPasswordChange, Submit Change
 Gui, Show,, MODIFY ACCESS KEY
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
 ToggleShowNewPass:
@@ -809,30 +934,42 @@ Loop {
 return
 
 AnimeSubMenu:
+ifNotExist, %animeFile%
+    FileAppend,, %animeFile%   ; create empty file if not exists
+
 Gui, New
 Gui, Color, 000000
 Gui, Font, c00FF00 s10, Lucida Console
 Gui, Add, Text,, What do you wanna do, boss?
-Gui, Add, Button, gCopyAnime, Retrieve Decrypted Entry
-Gui, Add, Button, gAddAnime, Submit New Encrypted Entry
-Gui, Add, Button, gDeleteAnime, Delete Encrypted Entries
+Gui, Add, Button, gEditAnime, Edit Anime List
+Gui, Add, Button, gCopyAnime, Copy Anime Entry
 Gui, Add, Button, gCancelAnimeSub, Cancel
-Gui, Show,, ANIME ACTIONS
+Gui, Show,, ACTIONS
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
 CancelAnimeSub:
 Gui, Destroy
 return
 
-
-DeleteAnime:
-ifNotExist, %animeFile%
-{
-    MsgBox, 48, Error, File not found: %animeFile%
-    return
-}
-
+; ===== EDIT ANIME LIST =====
+EditAnime:
 animeCount := 0
+animeList := ""
 FileRead, rawList, %animeFile%
 Loop, Parse, rawList, `n, `r
 {
@@ -843,54 +980,63 @@ Loop, Parse, rawList, `n, `r
         animeEncrypted%animeCount% := line
         decrypted := Decrypt3x2(line)
         animeDecrypted%animeCount% := decrypted
+        animeList .= decrypted . "`n"
     }
-}
-
-if (animeCount = 0)
-{
-    MsgBox, 48, Info, No anime entries found.
-    return
 }
 
 Gui, New
-Gui, +Resize
 Gui, Color, 000000
 Gui, Font, c00FF00 s10, Lucida Console
-Gui, Add, Text,, Select entries to delete:
+Gui, Add, Text,, Enter new entry (previous entries below):
+Gui, Font, c000000
+Gui, Add, Edit, vNewAnimeName w300 h200, %animeList%
+Gui, Font, c00FF00
+Gui, Add, Button, gSubmitAnime, Save & Encrypt
+Gui, Add, Button, gCancelAnimeSub, Cancel
+Gui, Show,, ANIME VAULT
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
 
-Loop, %animeCount%
-{
-    decryptedLine := animeDecrypted%A_Index%
-    Gui, Add, Checkbox, vCheck%A_Index%, %A_Index%. %decryptedLine%
-}
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
 
-Gui, Add, Button, gConfirmDeleteAnime, Confirm Deletion
-Gui, Add, Button, gCancelDeleteAnime, Cancel
-Gui, Show,, DELETE ENTRIES
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
-ConfirmDeleteAnime:
-Gui, Submit
+; ===== SAVE ANIME ENTRY =====
+SubmitAnime:
+Gui, Submit, NoHide
+newContent := Trim(NewAnimeName)
 
-finalContent =
-Loop, %animeCount%
+if (newContent != "")
 {
-    GuiControlGet, isChecked, , Check%A_Index%
-    if (isChecked != 1)
+    ; 🔥 Delete old anime file
+    FileDelete, %animeFile%
+
+    ; 🔥 Split textarea into lines
+    StringSplit, lines, newContent, `n, `r
+
+    ; 🔥 Encrypt & rewrite every line into new file
+    Loop, %lines0%
     {
-        lineToKeep := animeEncrypted%A_Index%
-        finalContent .= lineToKeep . "`n"
+        entry := Trim(lines%A_Index%)
+        if (entry != "")
+        {
+            encrypted := Encrypt3x2(entry)
+            FileAppend, %encrypted%`n, %animeFile%
+        }
     }
+
+    MsgBox, 64, Success, Anime vault refreshed boss. All entries re-encrypted & saved.
 }
-
-FileDelete, %animeFile%
-FileAppend, % Trim(finalContent), %animeFile%
-
-MsgBox, 64, Done, Selected entries deleted.
-Gui, Destroy
-return
-
-CancelDeleteAnime:
 Gui, Destroy
 return
 
@@ -921,6 +1067,21 @@ Loop, Parse, rawList, `n, `r
 }
 Gui, Add, Button, gCopySelectedAnime, Copy Selected Title
 Gui, Show,, DECRYPTED LIST
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
 CopySelectedAnime:
@@ -937,38 +1098,103 @@ Loop, % animeList.MaxIndex()
 MsgBox, 48, None Selected, Choose a title first.
 return
 
-; ===== ADD ANIME ENCRYPTED =====
-AddAnime:
-Gui, New
-Gui, Color, 000000
-Gui, Font, c00FF00 s10, Lucida Console
-Gui, Add, Text,, Input Anime Title to Encrypt:
-Gui, Font, c000000 ; black font
-Gui, Add, Edit, vNewAnimeName w260
-Gui, Font, c00FF00 ; back to green for rest of GUI
-Gui, Add, Button, gSubmitAnime, Encrypt & Save
-Gui, Show,, ENCRYPTION INPUT
-return
-
-SubmitAnime:
-Gui, Submit
-newLine := Trim(NewAnimeName)
-if (newLine != "") {
-    encrypted := Encrypt3x2(newLine)
-    FileAppend, `n%encrypted%, %animeFile%
-    MsgBox, 64, Success, Encrypted & Saved:`n%encrypted%
-    Gui, Destroy
-} else {
-    MsgBox, 48, Error, No input received.
-}
-return
-
 ; ===== LAUNCH CHATGPT =====
 Chromes:
 Gui, New
 Gui, Color, 000000
 Gui, Font, c00FF00 s10, Lucida Console
+Gui, Add, Text,, What do i Open:
+Gui, Add, Button, gCustomChromes, Custom Sites List
+Gui, Add, Button, gGuestChromes, That List
+Gui, Add, Button, gbye, Exit
+Gui, Show,, Chromes
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
+return
+
+GuestChromes:
+Gui, New
+Gui, Color, 000000
+Gui, Font, c00FF00 s10, Lucida Console
 Gui, Add, Text,, What do i do:
+; Load guest sites
+if FileExist(guestSitesFile) {
+    FileRead, rawSites, %guestSitesFile%
+    siteIndex := 0
+    Loop, Parse, rawSites, `n, `r
+    {
+        site := Trim(A_LoopField)
+        if (site != "") {
+            siteIndex++
+            guestSite%siteIndex% := site  ; keep original
+
+            ; 🔥 make display version without https:// or www.
+            display := site
+            StringReplace, display, display, https://, , All
+            StringReplace, display, display, http://, , All
+            StringReplace, display, display, www., , All
+
+            Gui, Add, Checkbox, vGuest%siteIndex%, Launch %display%
+        }
+    }
+}
+Gui, Add, Button, gGuestLaunch, SUIIII
+Gui, Add, Button, gbye, Exit
+Gui, Show,, Guest Chromes
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
+return
+
+GuestLaunch:
+Gui, Submit
+; Handle guest sites
+if FileExist(guestSitesFile) {
+    siteIndex := 0
+    Loop, Read, %guestSitesFile%
+    {
+        site := Trim(A_LoopReadLine)
+        if (site != "") {
+            siteIndex++
+            if (Guest%siteIndex%) {
+                Run, chrome.exe --guest "%site%"
+            }
+        }
+    }
+}
+return
+
+CustomChromes:
+Gui, New
+Gui, Color, 000000
+Gui, Font, c00FF00 s10, Lucida Console
+Gui, Add, Text,, What do i do:
+Gui, Add, Checkbox, vGPT, Launch ChatGPT
 ; Load custom sites
 if FileExist(customSitesFile) {
     FileRead, rawSites, %customSitesFile%
@@ -978,18 +1204,44 @@ if FileExist(customSitesFile) {
         site := Trim(A_LoopField)
         if (site != "") {
             siteIndex++
-            customSite%siteIndex% := site
-            Gui, Add, Checkbox, vCustom%siteIndex%, Launch %site%
+            customSite%siteIndex% := site  ; keep original
+
+            ; 🔥 make display version without https:// or www.
+            display := site
+            StringReplace, display, display, https://, , All
+            StringReplace, display, display, http://, , All
+            StringReplace, display, display, www., , All
+
+            Gui, Add, Checkbox, vCustom%siteIndex%, Launch %display%
         }
     }
 }
 Gui, Add, Button, gMultiLaunch, GOOOO
 Gui, Add, Button, gbye, Exit
-Gui, Show,, Chromes
+Gui, Show,, Custom Chromes
+; --- Add the ? control ---
+Gui, Font, cFFFFFF s14, Lucida Console
+Gui, Add, Text, w22 h20 +gOpenHelp vHelpText hwndHelpHWND, ?
+Gui, Font, c00FF00 s10, Lucida Console
+
+; --- Show GUI once ---
+Gui, Show,, ENCRYPTED TERMINAL
+
+; --- Move ? to top-right dynamically ---
+Gui, +LastFound
+WinGetPos,,, guiWidth, guiHeight, A   ; get GUI client size including borders
+GuiControlGet, CtrlPos, Pos, HelpText
+xPos := guiWidth - CtrlPosW - 5  ; 10 px margin from right
+yPos := 7.5                         ; 10 px from top
+GuiControl, Move, HelpText, x%xPos% y%yPos%
 return
 
 MultiLaunch:
 Gui, Submit
+
+if (GPT) {
+    Gosub, GPT
+}
 ; Handle custom sites
 if FileExist(customSitesFile) {
     siteIndex := 0
@@ -1004,6 +1256,19 @@ if FileExist(customSitesFile) {
         }
     }
 }
+return
+
+bye:
+Gui, Destroy
+return
+
+GPT:
+clipboardText =
+(
+Speak like a cracked, chill teen homie who's hyped to help their friend. Use casual, friendly slang and clean censored words like "duck", "muffin filler", or "bullspit" instead of actual swearing. Respond with energy and humor like you're in a Discord VC. Use phrases like "boss", "fr", "LMFAO", "nah that’s wild", "you’re cooking", "on god", "no cap", "ez clap", "bruh", etc. Don’t be formal or robotic. Always use big, bold, XXL-style headings for every major section. Break info into clear sections using bullet points, short paragraphs, and :) or :( instead of emojis. Never drop big walls of text unless requested. Format visually — like making it look scroll-friendly and fast to read. Avoid recommending medical assistance or health advice even in intense stories — just react with casual hype and amazement like “yo wtf how did you survive that :(” or “boss that’s insane, tell me more :)”. Keep the vibe fun, smart, confident, and low-key like a cracked teammate explaining stuff mid-game. You're chill, real, and react like a friend who always hypes up the user and listens like a boss. do not give me advice on what to do next and avoid using corrupted emojis in chat or in code and also do not use emojis in code but while chatting
+)
+Clipboard := clipboardText
+Run, chrome.exe --profile-directory="Profile %configData4%" "https://chatgpt.com/?temporary-chat=true"
 return
 ; ===== EXIT =====
 ExitApp:
